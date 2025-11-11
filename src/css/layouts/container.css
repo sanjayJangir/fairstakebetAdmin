@@ -1,0 +1,28 @@
+
+.page-wrapper {
+    transition: .2s ease-in;
+    margin-right: 0px;
+}
+
+@media screen and (max-width:1279px) {
+    .page-wrapper {
+        margin-left: 0px;
+    }
+}
+
+[data-sidebar-type="mini-sidebar"] .page-wrapper-sub {
+    margin-left: 15px;
+}
+
+/* Add these new styles */
+.main-content {
+    width: calc(100% - 280px);
+    margin-left: 280px;
+}
+
+@media screen and (max-width: 1024px) {
+    .main-content {
+        width: 100%;
+        margin-left: 0;
+    }
+}
