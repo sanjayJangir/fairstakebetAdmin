@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Badge, Dropdown } from 'flowbite-react';
+import { Table, Dropdown, Select } from 'flowbite-react';
 import { HiOutlineDotsVertical } from 'react-icons/hi';
 import { Icon } from '@iconify/react';
 import { formatDistanceToNow } from 'date-fns';
@@ -16,7 +16,7 @@ interface User {
     current_level: string;
     is_verified: boolean;
     balance: number;
-    status: 'active' | 'disabled';
+    status: 'active' | 'disabled' | 'pending';
     createdAt: string;
 }
 
@@ -45,19 +45,28 @@ const UsersTable = () => {
         }
     };
 
-    const handleStatusUpdate = async (userId: string, currentStatus: 'active' | 'disabled') => {
+    const handleStatusUpdate = async (userId: string, currentStatus: 'pending' | 'active' | 'disabled') => {
         try {
             const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
             await userService.updateUserStatus(userId, newStatus);
-            
             setUsers(users.map(user => 
                 user._id === userId 
                     ? { ...user, status: newStatus }
                     : user
             ));
-            
-            toast.success(`User ${newStatus === 'disabled' ? 'disabled' : 'activated'} successfully`);
+            toast.success(`User ${newStatus} successfully`);
         } catch (error) {
+            toast.error('Failed to update user status');
+        }
+    };
+
+    const handleChangeStatus = async (userId: string, newStatus: 'pending' | 'active' | 'disabled') => {
+        try {
+            await userService.updateUserStatus(userId, newStatus);
+            setUsers(prev => prev.map(u => u._id === userId ? { ...u, status: newStatus } : u));
+            toast.success(`User status set to ${newStatus}`);
+        } catch (error) {
+            console.error(error);
             toast.error('Failed to update user status');
         }
     };
@@ -130,9 +139,15 @@ const UsersTable = () => {
                                             </div>
                                         </Table.Cell>
                                         <Table.Cell>
-                                            <Badge color={user.status === 'active' ? 'success' : 'danger'}>
-                                                {user.status}
-                                            </Badge>
+                                            <Select
+                                                value={user.status}
+                                                onChange={(e) => handleChangeStatus(user._id, e.target.value as 'pending' | 'active' | 'disabled')}
+                                                className="w-auto text-sm"
+                                            >
+                                                <option value="pending">Pending</option>
+                                                <option value="active">Active</option>
+                                                <option value="disabled">Disabled</option>
+                                            </Select>
                                         </Table.Cell>
                                         <Table.Cell>{formatDate(user.createdAt)}</Table.Cell>
                                         <Table.Cell>
@@ -140,7 +155,7 @@ const UsersTable = () => {
                                                 label=""
                                                 dismissOnClick={false}
                                                 renderTrigger={() => (
-                                                    <button className="p-2 hover:bg-gray-100 rounded-full">
+                                                    <button aria-label="Actions" title="Actions" className="p-2 hover:bg-gray-100 rounded-full">
                                                         <HiOutlineDotsVertical className="h-5 w-5" />
                                                     </button>
                                                 )}
@@ -195,6 +210,7 @@ const UsersTable = () => {
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
                 userId={selectedUser}
+                onSaved={() => fetchUsers(currentPage)}
             />
 
             <AddAmountModal

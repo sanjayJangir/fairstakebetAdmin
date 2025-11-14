@@ -22,9 +22,10 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     userId: string | null;
+    onSaved?: () => void;
 }
 
-const EditUserModal = ({ isOpen, onClose, userId }: Props) => {
+const EditUserModal = ({ isOpen, onClose, userId, onSaved }: Props) => {
     const [isLoading, setIsLoading] = useState(true);
     const [userData, setUserData] = useState<UserData | null>(null);
 
@@ -51,6 +52,8 @@ const EditUserModal = ({ isOpen, onClose, userId }: Props) => {
         try {
             // Implement your update logic here
             await userService.updateUser(userId!, userData!);
+            // Notify parent to refresh the table or update state
+            onSaved?.();
             onClose();
         } catch (error) {
             console.error('Failed to update user:', error);
@@ -77,7 +80,10 @@ const EditUserModal = ({ isOpen, onClose, userId }: Props) => {
                     <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Edit User</h2>
                         <button 
+                            type="button"
                             onClick={onClose}
+                            aria-label="Close dialog"
+                            title="Close"
                             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                         >
                             <Icon icon="solar:close-circle-outline" className="h-6 w-6" />

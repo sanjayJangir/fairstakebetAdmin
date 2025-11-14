@@ -29,7 +29,7 @@ export const userService = {
         }
     },
 
-    updateUserStatus: async (userId: string, status: 'active' | 'disabled') => {
+    updateUserStatus: async (userId: string, status: 'pending' | 'active' | 'disabled') => {
         try {
             const response = await api.patch(`/admin/users/${userId}/status`, { status });
             return response.data;
