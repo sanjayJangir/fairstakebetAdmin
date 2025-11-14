@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   //baseURL: import.meta.env.DEV ? 'http://localhost:8000' : 'https://api.fairstakebet.com',
-  baseURL: import.meta.env.DEV ? 'http://localhost:8000' : 'https://api.fairstakebet.com', // adjust this to your backend URL
+  baseURL: import.meta.env.DEV ? 'http://localhost:8000' : 'https://apis.fairstakebet.com', // adjust this to your backend URL
   headers: {
     'Content-Type': 'application/json',
   }

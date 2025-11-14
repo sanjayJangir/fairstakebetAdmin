@@ -58,6 +58,17 @@ export const userService = {
             throw error;
         }
     },
+
+    addBalance: async (userId: string, amount: number) => {
+        try {
+            // Assumption: backend exposes an endpoint to increment a user's balance
+            const response = await api.patch(`/admin/users/${userId}/balance`, { amount });
+            return response.data;
+        } catch (error) {
+            console.error('Error adding balance to user:', error);
+            throw error;
+        }
+    },
 };
 
 

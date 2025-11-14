@@ -7,6 +7,7 @@ import { userService } from '../../services/api/userService';
 import { toast } from 'sonner';
 import UserDetailsModal from './UserDetailsModal';
 import EditUserModal from '../modals/EditUserModal';
+import AddAmountModal from '../modals/AddAmountModal';
 
 interface User {
     _id: string;
@@ -14,6 +15,7 @@ interface User {
     email: string;
     current_level: string;
     is_verified: boolean;
+    balance: number;
     status: 'active' | 'disabled';
     createdAt: string;
 }
@@ -25,6 +27,8 @@ const UsersTable = () => {
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [selectedForAdd, setSelectedForAdd] = useState<string | null>(null);
 
     const formatDate = (date: string) => {
         return formatDistanceToNow(new Date(date), { addSuffix: true });
@@ -68,6 +72,20 @@ const UsersTable = () => {
         setIsEditModalOpen(true);
     };
 
+    const openAddModal = (userId: string) => {
+        setSelectedForAdd(userId);
+        setIsAddModalOpen(true);
+    };
+
+    const handleAmountAdded = (amount: number) => {
+        // update local users state after a successful add
+        setUsers(prev => prev.map(u =>
+            u._id === selectedForAdd
+                ? { ...u, balance: Number(u.balance) + Number(amount) }
+                : u
+        ));
+    };
+
     useEffect(() => {
         fetchUsers(currentPage);
     }, [currentPage]);
@@ -89,6 +107,7 @@ const UsersTable = () => {
                                 <Table.HeadCell>Username</Table.HeadCell>
                                 <Table.HeadCell>Email</Table.HeadCell>
                                 <Table.HeadCell>Level</Table.HeadCell>
+                                <Table.HeadCell>Balance</Table.HeadCell>
                                 <Table.HeadCell>Status</Table.HeadCell>
                                 <Table.HeadCell>Joined</Table.HeadCell>
                                 <Table.HeadCell>Actions</Table.HeadCell>
@@ -99,6 +118,17 @@ const UsersTable = () => {
                                         <Table.Cell>{user.username}</Table.Cell>
                                         <Table.Cell>{user.email}</Table.Cell>
                                         <Table.Cell>{user.current_level}</Table.Cell>
+                                        <Table.Cell>
+                                            <div className="flex items-center gap-3">
+                                                <span>$ {typeof user.balance === 'number' ? user.balance.toFixed(2) : user.balance}</span>
+                                                <button
+                                                    onClick={() => openAddModal(user._id)}
+                                                    className="text-xs px-2 py-1 bg-blue-600 text-white rounded"
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </Table.Cell>
                                         <Table.Cell>
                                             <Badge color={user.status === 'active' ? 'success' : 'danger'}>
                                                 {user.status}
@@ -165,6 +195,14 @@ const UsersTable = () => {
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
                 userId={selectedUser}
+            />
+
+            <AddAmountModal
+                isOpen={isAddModalOpen}
+                onClose={() => { setIsAddModalOpen(false); setSelectedForAdd(null); }}
+                userId={selectedForAdd}
+                currentBalance={users.find(u => u._id === selectedForAdd)?.balance || 0}
+                onAdded={handleAmountAdded}
             />
         </>
     );
