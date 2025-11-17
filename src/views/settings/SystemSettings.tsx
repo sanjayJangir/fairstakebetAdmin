@@ -1,34 +1,51 @@
 import { useEffect, useState } from 'react';
-import { Label, TextInput, Button, Checkbox, Select } from 'flowbite-react';
-import { settingsService } from '../../services/api/settingsService';
-import type { SystemSettings } from '../../services/api/settingsService';
+import { Label, TextInput, Button, Checkbox } from 'flowbite-react';
 import { toast } from 'sonner';
+import { api } from '../../services/api/api';
+
+interface Setting {
+  key: string;
+  value: boolean | number | string;
+  type: 'boolean' | 'number' | 'string';
+  description: string;
+}
+
+interface SettingsData {
+  [section: string]: Setting[];
+}
 
 export default function SystemSettings() {
-  const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const resp = await settingsService.getSystemSettings();
-        // assume API returns the settings object directly
-        setSettings(resp.data || resp);
-      } catch (error) {
-        console.error(error);
-        toast.error('Failed to load system settings');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+    loadSettings();
   }, []);
 
-  const handleChange = <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
-    setSettings(prev => prev ? { ...prev, [key]: value } : prev);
+  const loadSettings = async () => {
+    setLoading(true);
+    try {
+      const resp = await api.get('/admin/settings/system');
+      setSettings(resp.data.data || resp.data);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load system settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (section: string, key: string, value: boolean | number | string) => {
+    setSettings(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        [section]: prev[section].map(s =>
+          s.key === key ? { ...s, value } : s
+        )
+      };
+    });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -36,8 +53,15 @@ export default function SystemSettings() {
     if (!settings) return;
     setSaving(true);
     try {
-      await settingsService.updateSystemSettings(settings);
-      toast.success('System settings updated');
+      // Build payload: flatten all settings
+      const payload: Record<string, boolean | number | string> = {};
+      Object.values(settings).forEach(section => {
+        section.forEach(setting => {
+          payload[setting.key] = setting.value;
+        });
+      });
+      await api.put('/admin/settings/system', payload);
+      toast.success('System settings updated successfully');
     } catch (error) {
       console.error(error);
       toast.error('Failed to update system settings');
@@ -47,106 +71,128 @@ export default function SystemSettings() {
   };
 
   const handleReset = () => {
-    // reload from server
     setSettings(null);
-    setLoading(true);
-    settingsService.getSystemSettings()
-      .then((resp) => setSettings(resp.data || resp))
-      .catch((err) => { console.error(err); toast.error('Failed to reload settings'); })
-      .finally(() => setLoading(false));
+    loadSettings();
+  };
+
+  const formatLabel = (key: string): string => {
+    return key
+      .replace(/_/g, ' ')                    // Replace underscores with spaces
+      .replace(/([a-z])([A-Z])/g, '$1 $2')  // Split camelCase
+      .replace(/\b\w/g, char => char.toUpperCase()) // Capitalize each word
+      .trim();
   };
 
   if (loading && !settings) {
     return <div className="p-6">Loading system settings...</div>;
   }
 
+  const sectionIcons: Record<string, string> = {
+    email: '📧',
+    game: '🎮',
+    payment: '💳',
+    security: '🔒',
+    system: '⚙️',
+    user: '👤'
+  };
+
   return (
-    <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 w-full">
-      <h3 className="text-lg font-semibold mb-4">System Settings</h3>
+    <div className="w-full">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">System Settings</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">Manage and configure all system settings and features</p>
+      </div>
 
-      <form onSubmit={handleSave} className="grid grid-cols-12 gap-6">
-        <div className="lg:col-span-6 col-span-12">
-          <div className="mb-4">
-            <Checkbox
-              checked={!!settings?.maintenance}
-              onChange={(e) => handleChange('maintenance', (e.target as HTMLInputElement).checked)}
-              id="maintenance"
-            />
-            <Label htmlFor="maintenance" className="ml-3 inline">Maintenance Mode</Label>
-            <p className="text-sm text-gray-500">When enabled, site will be in maintenance mode.</p>
-          </div>
+      <form onSubmit={handleSave}>
+        <div className="grid grid-cols-1 gap-6">
+          {settings && Object.entries(settings).map(([section, sectionSettings]) => (
+            <div key={section} className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray overflow-hidden">
+              {/* Section Header */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{sectionIcons[section] || '⚙️'}</span>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
+                      {section.replace(/_/g, ' ')} Settings
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {sectionSettings.length} settings
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-          <div className="mb-4">
-            <Checkbox
-              checked={!!settings?.chatEnabled}
-              onChange={(e) => handleChange('chatEnabled', (e.target as HTMLInputElement).checked)}
-              id="chatEnabled"
-            />
-            <Label htmlFor="chatEnabled" className="ml-3 inline">Chat Enabled</Label>
-            <p className="text-sm text-gray-500">Allow users to use chat features.</p>
-          </div>
-
-          <div className="mb-4">
-            <div className="mb-2 block">
-              <Label htmlFor="maxUsers" value="Max Users" />
+              {/* Section Content */}
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {sectionSettings.map(setting => (
+                    <div key={setting.key} className="flex flex-col">
+                      {setting.type === 'boolean' ? (
+                        <div className="flex items-start space-x-3 h-full p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                          <Checkbox
+                            checked={!!setting.value}
+                            onChange={(e) => handleChange(section, setting.key, (e.target as HTMLInputElement).checked)}
+                            id={`${section}-${setting.key}`}
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <Label htmlFor={`${section}-${setting.key}`} className="font-medium text-gray-900 dark:text-white cursor-pointer">
+                              {formatLabel(setting.key)}
+                            </Label>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{setting.description}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col h-full">
+                          <Label 
+                            htmlFor={`${section}-${setting.key}`} 
+                            value={formatLabel(setting.key)}
+                            className="font-medium text-gray-900 dark:text-white mb-2"
+                          />
+                          <TextInput
+                            id={`${section}-${setting.key}`}
+                            type={setting.type === 'number' ? 'number' : 'text'}
+                            value={setting.value}
+                            onChange={(e) => handleChange(section, setting.key, setting.type === 'number' ? Number(e.target.value) : e.target.value)}
+                            className="mb-2 flex-1"
+                            placeholder={`Enter ${setting.type}`}
+                          />
+                          <p className="text-xs text-gray-600 dark:text-gray-400">{setting.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <TextInput
-              id="maxUsers"
-              type="number"
-              value={settings?.maxUsers ?? ''}
-              onChange={(e) => handleChange('maxUsers', Number(e.target.value))}
-              className="form-control"
-            />
-            <p className="text-sm text-gray-500">Maximum allowed registered users.</p>
-          </div>
+          ))}
         </div>
 
-        <div className="lg:col-span-6 col-span-12">
-          <div className="mb-4">
-            <div className="mb-2 block">
-              <Label htmlFor="theme" value="Theme" />
-            </div>
-            <Select
-              id="theme"
-              value={settings?.theme || 'light'}
-              onChange={(e) => handleChange('theme', e.target.value)}
-            >
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="system">System</option>
-            </Select>
-          </div>
-
-          <div className="mb-4">
-            <Checkbox
-              checked={!!settings?.emailNotifications}
-              onChange={(e) => handleChange('emailNotifications', (e.target as HTMLInputElement).checked)}
-              id="emailNotifications"
-            />
-            <Label htmlFor="emailNotifications" className="ml-3 inline">Email Notifications</Label>
-            <p className="text-sm text-gray-500">Enable system generated email notifications.</p>
-          </div>
-
-          <div className="mb-4">
-            <div className="mb-2 block">
-              <Label htmlFor="backupFrequency" value="Backup Frequency" />
-            </div>
-            <Select
-              id="backupFrequency"
-              value={settings?.backupFrequency || 'daily'}
-              onChange={(e) => handleChange('backupFrequency', e.target.value)}
-            >
-              <option value="hourly">Hourly</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-            </Select>
-            <p className="text-sm text-gray-500">How often backups run.</p>
-          </div>
-        </div>
-
-        <div className="col-span-12 flex gap-3 mt-2">
-          <Button color="primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Settings'}</Button>
-          <Button color="gray" type="button" onClick={handleReset}>Reset</Button>
+        {/* Action Buttons */}
+        <div className="flex gap-3 mt-8 pt-6">
+          <Button 
+            color="primary" 
+            type="submit" 
+            disabled={saving}
+            className="px-6 py-2 font-medium"
+          >
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin">⏳</span>
+                Saving...
+              </span>
+            ) : (
+              'Save All Settings'
+            )}
+          </Button>
+          <Button 
+            color="gray" 
+            type="button" 
+            onClick={handleReset}
+            className="px-6 py-2 font-medium"
+          >
+            Reset
+          </Button>
         </div>
       </form>
     </div>

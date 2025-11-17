@@ -1,18 +1,20 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "flowbite-react";
 import { Icon } from "@iconify/react";
 import Notification from "./notification";
 import { Drawer } from "flowbite-react";
 import MobileSidebar from "../sidebar/MobileSidebar";
 import { useAdmin } from 'src/context/AdminContext';
+import { settingsService } from 'src/services/api/settingsService';
 import { removeAuthToken } from 'src/utils/auth';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip } from 'flowbite-react';
 import user1 from "/src/assets/images/profile/user-1.jpg";
 
 const Header = () => {
-  const {  dispatch } = useAdmin();
+  const { admin, dispatch } = useAdmin();
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   // const [isSticky, setIsSticky] = useState(false);
@@ -22,6 +24,22 @@ const Header = () => {
     dispatch({ type: 'LOGOUT' });
     navigate('/auth/login');
   };
+
+  useEffect(() => {
+    let mounted = true;
+    const loadProfile = async () => {
+      try {
+        const resp = await settingsService.getProfile();
+        const data = resp.data || resp;
+        const name = data.name || data.fullName || data.username || data.email;
+        if (mounted && name) setDisplayName(name);
+      } catch (error) {
+        // ignore
+      }
+    };
+    loadProfile();
+    return () => { mounted = false; };
+  }, []);
 
   // useEffect(() => {
   //   const handleScroll = () => {
@@ -55,7 +73,7 @@ const Header = () => {
                   className="w-10 h-10 rounded-full object-cover"
                 />
                 <span className="text-gray-700 dark:text-gray-300 font-medium">
-                  admin@fairstakebet.com
+                  {displayName || (admin?.email ?? 'admin@fairstakebet.com')}
                 </span>
               </div>
               

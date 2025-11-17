@@ -21,6 +21,23 @@ export default function ProfileSettings() {
     if (admin?.email) setEmail(admin.email);
   }, [admin]);
 
+  useEffect(() => {
+    // Fetch profile from API (name + email) and prefill form
+    const loadProfile = async () => {
+      try {
+        const resp = await settingsService.getProfile();
+        // API might return { data: { name, email } } or { name, email }
+        const data = resp.data || resp;
+        if (data.name) setName(data.name);
+        if (data.email) setEmail(data.email);
+      } catch (error) {
+        console.error('Failed to load profile:', error);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingProfile(true);

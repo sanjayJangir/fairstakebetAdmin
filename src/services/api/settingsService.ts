@@ -20,6 +20,11 @@ export const settingsService = {
     return response.data;
   },
 
+  getProfile: async () => {
+    const response = await api.get('/admin/settings/profile');
+    return response.data;
+  },
+
   changePassword: async (data: {
     currentPassword: string;
     newPassword: string;
